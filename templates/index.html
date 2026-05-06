@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ThreatScope — AI Phishing Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f8f8fc;
+      --surface:    #ffffff;
+      --border:     #e8e6f0;
+      --purple:     #6c3fff;
+      --purple-mid: #8b5cf6;
+      --purple-lt:  #ede9fe;
+      --text:       #0f0e17;
+      --muted:      #6b7280;
+      --risk:       #ef4444;
+      --risk-bg:    #fef2f2;
+      --warn:       #f59e0b;
+      --warn-bg:    #fffbeb;
+      --ok:         #10b981;
+      --ok-bg:      #ecfdf5;
+      --radius:     12px;
+      --shadow:     0 4px 24px rgba(108,63,255,0.08);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(248,248,252,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem;
+      color: var(--text); text-decoration: none;
+    }
+    .nav-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-mid));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      font-size: 0.9rem; color: var(--muted); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .btn-primary {
+      background: var(--purple); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 9px 20px; font-size: 0.88rem; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn-primary:hover { background: #5a32d6; transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      max-width: 1100px; margin: 0 auto;
+      padding: 80px 40px 60px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--purple-lt); color: var(--purple);
+      border: 1px solid #c4b5fd; border-radius: 20px;
+      padding: 5px 14px; font-size: 0.8rem; font-weight: 500;
+      margin-bottom: 24px;
+    }
+    .badge-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--purple); animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+    h1 {
+      font-family: 'Syne', sans-serif; font-size: 3rem;
+      font-weight: 800; line-height: 1.1; margin-bottom: 16px;
+    }
+    h1 span { color: var(--purple); }
+    .hero-desc {
+      color: var(--muted); font-size: 1rem; line-height: 1.65;
+      margin-bottom: 32px; max-width: 460px;
+    }
+
+    /* ── SCANNER CARD ── */
+    .scanner-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      box-shadow: var(--shadow);
+    }
+    .scanner-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 12px;
+    }
+    .input-row {
+      display: flex; gap: 10px; margin-bottom: 14px;
+    }
+    .url-input {
+      flex: 1; border: 1px solid var(--border); border-radius: 8px;
+      padding: 11px 16px; font-size: 0.9rem;
+      font-family: 'DM Sans', sans-serif; color: var(--text);
+      background: var(--bg); outline: none;
+      transition: border-color 0.2s;
+    }
+    .url-input:focus { border-color: var(--purple); }
+    .btn-scan {
+      background: var(--purple); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 11px 22px; font-size: 0.9rem; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.2s, transform 0.15s;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .btn-scan:hover { background: #5a32d6; transform: translateY(-1px); }
+    .btn-scan:disabled { background: #a78bfa; cursor: not-allowed; transform: none; }
+    .try-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .try-label { font-size: 0.78rem; color: var(--muted); }
+    .try-chip {
+      font-size: 0.75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 10px; cursor: pointer; color: var(--muted);
+      transition: all 0.15s;
+    }
+    .try-chip:hover { border-color: var(--purple); color: var(--purple); }
+
+    /* ── TRUST BADGES ── */
+    .trust-row {
+      display: flex; gap: 24px; margin-top: 28px; flex-wrap: wrap;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; color: var(--muted);
+    }
+
+    /* ── RESULT PANEL ── */
+    .result-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(108,63,255,0.12);
+    }
+    .result-header {
+      padding: 16px 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .browser-dots { display: flex; gap: 5px; }
+    .dot {
+      width: 11px; height: 11px; border-radius: 50%;
+    }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+    .url-bar {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 5px 12px;
+      font-size: 0.78rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .result-body { padding: 20px; }
+
+    .verdict-box {
+      border-radius: 10px; padding: 14px 16px;
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 16px;
+    }
+    .verdict-box.phishing { background: var(--risk-bg); border: 1px solid #fecaca; }
+    .verdict-box.legitimate { background: var(--ok-bg); border: 1px solid #a7f3d0; }
+    .verdict-box.scanning { background: var(--purple-lt); border: 1px solid #c4b5fd; }
+
+    .verdict-icon { font-size: 1.6rem; }
+    .verdict-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; margin-bottom: 2px;
+    }
+    .verdict-label.phishing { color: var(--risk); }
+    .verdict-label.legitimate { color: var(--ok); }
+    .verdict-label.scanning { color: var(--purple); }
+    .verdict-title {
+      font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 700;
+    }
+    .verdict-sub { font-size: 0.8rem; color: var(--muted); }
+
+    .feature-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+      font-size: 0.83rem;
+    }
+    .feature-row:last-child { border-bottom: none; }
+    .feature-name { display: flex; align-items: center; gap: 8px; color: var(--text); }
+    .feature-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .feature-dot.RISK { background: var(--risk); }
+    .feature-dot.WARN { background: var(--warn); }
+    .feature-dot.OK   { background: var(--ok); }
+
+    .tag {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+      border-radius: 4px; padding: 2px 7px; text-transform: uppercase;
+    }
+    .tag.RISK { background: var(--risk-bg); color: var(--risk); }
+    .tag.WARN { background: var(--warn-bg); color: var(--warn); }
+    .tag.OK   { background: var(--ok-bg);   color: var(--ok);  }
+
+    .placeholder-text {
+      text-align: center; padding: 32px 20px;
+      color: var(--muted); font-size: 0.88rem; line-height: 1.6;
+    }
+    .placeholder-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* ── FEATURES SECTION ── */
+    .features-section {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 60px 40px;
+    }
+    .features-grid {
+      max-width: 1100px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+    }
+    .feature-card { padding: 8px 0; }
+    .feature-card-icon { font-size: 1.8rem; margin-bottom: 14px; }
+    .feature-card-title {
+      font-family: 'Syne', sans-serif; font-size: 0.95rem;
+      font-weight: 700; margin-bottom: 8px;
+    }
+    .feature-card-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── HOW IT WORKS ── */
+    .how-section {
+      padding: 80px 40px;
+      max-width: 1100px; margin: 0 auto;
+      text-align: center;
+    }
+    .section-title {
+      font-family: 'Syne', sans-serif; font-size: 2rem;
+      font-weight: 800; margin-bottom: 10px;
+    }
+    .section-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 48px; }
+    .steps-row {
+      display: flex; align-items: flex-start; justify-content: center;
+      gap: 0; flex-wrap: wrap;
+    }
+    .step { flex: 1; min-width: 140px; max-width: 200px; padding: 0 8px; position: relative; }
+    .step-num {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 2px solid var(--purple); color: var(--purple);
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .step-connector {
+      position: absolute; top: 22px; left: calc(50% + 22px);
+      width: calc(100% - 44px); height: 2px;
+      background: var(--border);
+    }
+    .step:last-child .step-connector { display: none; }
+    .step-title {
+      font-family: 'Syne', sans-serif; font-size: 0.88rem;
+      font-weight: 700; margin-bottom: 6px;
+    }
+    .step-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--text); color: #9ca3af;
+      padding: 24px 40px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .footer-brand {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem;
+      color: #fff;
+    }
+    .footer-brand span { color: var(--purple-mid); }
+    footer p { font-size: 0.8rem; }
+
+    /* ── SPINNER ── */
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 768px) {
+      .hero { grid-template-columns: 1fr; padding: 40px 20px; gap: 32px; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      h1 { font-size: 2.2rem; }
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="#">
+    <div class="nav-icon">🛡️</div>
+    ThreatScope
+  </a>
+  <div class="nav-links">
+    <a href="#">Home</a>
+    <a href="#how">How It Works</a>
+    <a href="#about">About</a>
+    <a class="btn-primary" href="#scanner">Try Scanner</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="scanner">
+  <!-- LEFT -->
+  <div>
+    <div class="badge">
+      <div class="badge-dot"></div>
+      AI-Powered URL Threat Detection System
+    </div>
+    <h1>Is This Website<br/><span>Safe to Visit?</span></h1>
+    <p class="hero-desc">
+      ThreatScope uses advanced machine learning to instantly analyse any URL
+      and detect phishing threats — before you click. Powered by a tuned XGBoost
+      classifier trained on 30 structural URL features.
+    </p>
+
+    <!-- SCANNER -->
+    <div class="scanner-card">
+      <div class="scanner-label">Enter URL to Scan</div>
+      <div class="input-row">
+        <input
+          class="url-input" id="urlInput"
+          type="text" placeholder="https://example.com"
+          autocomplete="off" spellcheck="false"
+        />
+        <button class="btn-scan" id="scanBtn" onclick="analyseURL()">
+          <span id="btnIcon">🔍</span>
+          <span id="btnText">Analyse URL</span>
+          <div class="spinner" id="spinner"></div>
+        </button>
+      </div>
+      <div class="try-row">
+        <span class="try-label">Try:</span>
+        <span class="try-chip" onclick="setURL('paypal-secure-login.tk/verify')">paypal-secure-login.tk</span>
+        <span class="try-chip" onclick="setURL('https://google.com')">google.com</span>
+        <span class="try-chip" onclick="setURL('192.168.1.1/bank/login')">192.168.1.1/bank</span>
+      </div>
+    </div>
+
+    <div class="trust-row">
+      <div class="trust-item">🔒 30+ Features Checked</div>
+      <div class="trust-item">⚡ Instant Results</div>
+      <div class="trust-item">🤖 XGBoost Classifier</div>
+    </div>
+  </div>
+
+  <!-- RIGHT — Result Panel -->
+  <div>
+    <div class="result-panel" id="resultPanel">
+      <div class="result-header">
+        <div class="browser-dots">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+        </div>
+        <div class="url-bar" id="urlBar">Enter a URL to begin scanning...</div>
+      </div>
+      <div class="result-body" id="resultBody">
+        <div class="placeholder-text">
+          <div class="placeholder-icon">🔍</div>
+          <strong>Paste any URL above</strong><br/>
+          ThreatScope will analyse 30 structural features<br/>
+          and return an instant verdict.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section" id="about">
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-card-icon">🔎</div>
+      <div class="feature-card-title">30+ Feature Analysis</div>
+      <div class="feature-card-desc">Examines URL structure, domain properties, and security indicators in real time.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-icon">🤖</div>
+      <div class="feature-card-title">Machine Learning Model</div>
+      <div class="feature-card-desc">Tuned XGBoost classifier achieving 99.35% ROC-AUC on the UCI phishing dataset.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-icon">⚡</div>
+      <div class="feature-card-title">Instant Detection</div>
+      <div class="feature-card-desc">Results delivered in milliseconds — fast enough to check before you click.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-icon">📊</div>
+      <div class="feature-card-title">Confidence Scoring</div>
+      <div class="feature-card-desc">Every verdict comes with a confidence percentage and full feature breakdown.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="how-section">
+    <h2 class="section-title">How ThreatScope Works</h2>
+    <p class="section-sub">A five-step machine learning pipeline from URL input to verdict</p>
+    <div class="steps-row">
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num">1</div>
+        <div class="step-title">Enter URL</div>
+        <div class="step-desc">Paste any suspicious link into the scanner</div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num">2</div>
+        <div class="step-title">Extract Features</div>
+        <div class="step-desc">30 structural attributes extracted automatically</div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num">3</div>
+        <div class="step-title">Scale & Normalise</div>
+        <div class="step-desc">MinMax scaling applied for model compatibility</div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num">4</div>
+        <div class="step-title">Run Classifier</div>
+        <div class="step-desc">Tuned XGBoost model analyses the feature set</div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num">5</div>
+        <div class="step-title">Show Verdict</div>
+        <div class="step-desc">Phishing or Legitimate result with confidence score</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">Threat<span>Scope</span></div>
+  <p>AI-Powered Phishing Detection · Powered by XGBoost</p>
+</footer>
+
+<script>
+  function setURL(url) {
+    document.getElementById('urlInput').value = url;
+    document.getElementById('urlInput').focus();
+  }
+
+  document.getElementById('urlInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') analyseURL();
+  });
+
+  async function analyseURL() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) {
+      document.getElementById('urlInput').focus();
+      return;
+    }
+
+    // Show scanning state
+    const btn = document.getElementById('scanBtn');
+    btn.disabled = true;
+    document.getElementById('btnIcon').style.display  = 'none';
+    document.getElementById('btnText').textContent    = 'Scanning...';
+    document.getElementById('spinner').style.display  = 'block';
+    document.getElementById('urlBar').textContent     = url;
+
+    document.getElementById('resultBody').innerHTML = `
+      <div class="verdict-box scanning">
+        <div class="verdict-icon">🔄</div>
+        <div>
+          <div class="verdict-label scanning">Analysing</div>
+          <div class="verdict-title">Extracting 30 features...</div>
+          <div class="verdict-sub">Running XGBoost classifier</div>
+        </div>
+      </div>`;
+
+    try {
+      const res  = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        showError(data.error);
+        return;
+      }
+
+      renderResult(data);
+    } catch(err) {
+      showError('Connection error. Is the Flask server running?');
+    } finally {
+      btn.disabled = false;
+      document.getElementById('btnIcon').style.display  = 'inline';
+      document.getElementById('btnText').textContent    = 'Analyse URL';
+      document.getElementById('spinner').style.display  = 'none';
+    }
+  }
+
+  function renderResult(data) {
+    const isPhishing = data.verdict === 'PHISHING';
+    const boxClass   = isPhishing ? 'phishing' : 'legitimate';
+    const icon       = isPhishing ? '🚨' : '✅';
+    const label      = isPhishing ? 'PHISHING DETECTED' : 'LEGITIMATE SITE';
+    const title      = isPhishing ? 'High Risk URL' : 'Safe to Visit';
+
+    let featuresHTML = data.features.map(f => `
+      <div class="feature-row">
+        <div class="feature-name">
+          <div class="feature-dot ${f.status}"></div>
+          ${f.name}
+        </div>
+        <span class="tag ${f.status}">${f.status}</span>
+      </div>`).join('');
+
+    document.getElementById('resultBody').innerHTML = `
+      <div class="verdict-box ${boxClass}">
+        <div class="verdict-icon">${icon}</div>
+        <div>
+          <div class="verdict-label ${boxClass}">${label}</div>
+          <div class="verdict-title">${title}</div>
+          <div class="verdict-sub">Confidence: ${data.confidence}%</div>
+        </div>
+      </div>
+      ${featuresHTML}`;
+  }
+
+  function showError(msg) {
+    document.getElementById('resultBody').innerHTML = `
+      <div class="verdict-box" style="background:#fef2f2;border:1px solid #fecaca">
+        <div class="verdict-icon">⚠️</div>
+        <div>
+          <div class="verdict-label" style="color:#ef4444">Error</div>
+          <div class="verdict-title">${msg}</div>
+        </div>
+      </div>`;
+  }
+</script>
+</body>
+</html>
